@@ -201,7 +201,7 @@ fun ExtractorScreen(
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                text = activeSchema?.name ?: "Supermarket Flyer",
+                                text = activeSchema?.name ?: "Supermarket & Grocery Flyer",
                                 style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
                                 color = MaterialTheme.colorScheme.primary
                             )

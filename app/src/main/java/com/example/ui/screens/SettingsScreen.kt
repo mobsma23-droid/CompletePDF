@@ -17,13 +17,14 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.CloudDone
 import androidx.compose.material.icons.filled.CloudQueue
 import androidx.compose.material.icons.filled.DarkMode
-import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.LightMode
+import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Pattern
 import androidx.compose.material.icons.filled.Schema
@@ -62,14 +63,13 @@ import com.example.model.FieldValidationRule
 import com.example.service.GoogleDriveUploader
 import com.example.ui.components.RegexValidationConfigDialog
 import com.example.ui.components.SchemaManagerDialog
+import com.google.firebase.auth.FirebaseUser
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
     currentTheme: AppThemeMode,
     onThemeChange: (AppThemeMode) -> Unit,
-    geminiKey: String,
-    onGeminiKeySave: (String) -> Unit,
     driveToken: String,
     onDriveTokenSave: (String) -> Unit,
     driveFolderId: String,
@@ -87,9 +87,10 @@ fun SettingsScreen(
     onSaveSchema: (ExtractionSchema) -> Unit = {},
     onDeleteSchema: (String) -> Unit = {},
     onResetSchemasDefaults: () -> Unit = {},
+    currentUser: FirebaseUser? = null,
+    onSignOut: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
-    var tempKey by remember(geminiKey) { mutableStateOf(geminiKey) }
     var tempToken by remember(driveToken) { mutableStateOf(driveToken) }
     var tempFolder by remember(driveFolderId) { mutableStateOf(driveFolderId) }
     var showRegexDialog by remember { mutableStateOf(false) }
@@ -115,6 +116,61 @@ fun SettingsScreen(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
+        }
+
+        // Account / Profile Card
+        if (currentUser != null) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("card_settings_account"),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                shape = RoundedCornerShape(14.dp),
+                border = CardDefaults.outlinedCardBorder()
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(44.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.primaryContainer),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.AccountCircle,
+                            contentDescription = "User Avatar",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(28.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = currentUser.displayName?.ifBlank { "Google User" } ?: "Google User",
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                        )
+                        Text(
+                            text = currentUser.email ?: "Authenticated with Google",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    OutlinedButton(
+                        onClick = onSignOut,
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier.testTag("btn_sign_out")
+                    ) {
+                        Icon(Icons.Default.Logout, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Sign Out")
+                    }
+                }
+            }
         }
 
         // Data Extraction Schema Configuration Card
@@ -149,7 +205,7 @@ fun SettingsScreen(
                             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
                         )
                         Text(
-                            text = "Active: ${activeSchema?.name ?: "Supermarket Flyer"} (${allSchemas.size} total schemas)",
+                            text = "Active: ${activeSchema?.name ?: "Supermarket & Grocery Flyer"}",
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.primary
                         )
@@ -159,7 +215,7 @@ fun SettingsScreen(
                 Spacer(modifier = Modifier.height(8.dp))
 
                 Text(
-                    text = "Save and reuse specific field schemas (Product Name, SKU, Price, Barcode, Validity Date, etc.) for consistent and structured PDF catalog processing.",
+                    text = "Supermarket & Grocery Flyer schema extracting product name, brand, category, promotional price, regular price, validity date, and packaging unit.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -174,12 +230,12 @@ fun SettingsScreen(
                 ) {
                     Icon(Icons.Default.Tune, contentDescription = null, modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("Manage Extraction Schemas & Fields")
+                    Text("View Schema Fields & Details")
                 }
             }
         }
 
-        // Google Drive Integration & Auto-Upload Card
+        // Google Drive Integration & Auto-Upload Card (Requires OAuth Bearer Token)
         Card(
             modifier = Modifier
                 .fillMaxWidth()
@@ -211,9 +267,9 @@ fun SettingsScreen(
                             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
                         )
                         Text(
-                            text = "Cloud backup for generated Excel & CSV files",
+                            text = "Requires OAuth Bearer Token for authorization",
                             style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.primary
                         )
                     }
                 }
@@ -271,13 +327,22 @@ fun SettingsScreen(
 
                 Spacer(modifier = Modifier.height(10.dp))
 
+                // Mandatory OAuth Bearer Token input for Google Drive sync
                 OutlinedTextField(
                     value = tempToken,
                     onValueChange = { tempToken = it },
-                    label = { Text("OAuth Bearer Token (Optional)") },
+                    label = { Text("OAuth Bearer Token (Required)") },
                     placeholder = { Text("ya29.a0A...") },
                     visualTransformation = PasswordVisualTransformation(),
                     singleLine = true,
+                    supportingText = {
+                        Text(
+                            text = if (tempToken.isBlank())
+                                "A valid Google Drive OAuth Bearer token is required to upload files."
+                            else
+                                "OAuth Bearer token configured for Drive upload API calls."
+                        )
+                    },
                     modifier = Modifier
                         .fillMaxWidth()
                         .testTag("drive_oauth_token_input")
@@ -418,77 +483,10 @@ fun SettingsScreen(
                 Spacer(modifier = Modifier.height(8.dp))
 
                 Text(
-                    text = "When enabled, catalog analysis, chunk splitting, Gemini AI product extraction, Excel/CSV generation, and Drive uploads will continue uninterrupted with foreground service notifications.",
+                    text = "When enabled, catalog analysis, chunk splitting, AI product extraction, Excel/CSV generation, and Drive uploads will continue uninterrupted with foreground service notifications.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-            }
-        }
-
-        // Gemini API Key Card
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .testTag("card_settings_gemini"),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-            shape = RoundedCornerShape(14.dp),
-            border = CardDefaults.outlinedCardBorder()
-        ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .size(36.dp)
-                            .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.tertiaryContainer),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Key,
-                            contentDescription = "Gemini API Key",
-                            tint = MaterialTheme.colorScheme.tertiary,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Text(
-                        text = "Gemini AI API Key",
-                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Text(
-                    text = "Set an optional custom Gemini API Key override for batch catalog data extraction.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-
-                Spacer(modifier = Modifier.height(10.dp))
-
-                OutlinedTextField(
-                    value = tempKey,
-                    onValueChange = { tempKey = it },
-                    label = { Text("Gemini API Key") },
-                    placeholder = { Text("AIzaSy...") },
-                    visualTransformation = PasswordVisualTransformation(),
-                    singleLine = true,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .testTag("gemini_api_key_input")
-                )
-
-                Spacer(modifier = Modifier.height(10.dp))
-
-                Button(
-                    onClick = { onGeminiKeySave(tempKey) },
-                    modifier = Modifier
-                        .align(Alignment.End)
-                        .testTag("save_gemini_key_button")
-                ) {
-                    Text("Save Key")
-                }
             }
         }
 
@@ -617,3 +615,4 @@ fun ThemeOptionRow(
         }
     }
 }
+

@@ -267,15 +267,15 @@ fun SchemaManagerDialog(
                                 onClick = {
                                     editingSchema = ExtractionSchema(
                                         id = UUID.randomUUID().toString(),
-                                        name = "Retail & SKU Catalog",
-                                        description = "Custom product and SKU schema",
-                                        fields = DefaultSchemas.RETAIL_SKU.fields
+                                        name = "Supermarket Custom Schema",
+                                        description = "Custom product and supermarket flyer schema",
+                                        fields = DefaultSchemas.SUPERMARKET_FLYER.fields
                                     )
                                 }
                             ) {
                                 Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
                                 Spacer(modifier = Modifier.width(6.dp))
-                                Text("Create from Retail Preset")
+                                Text("Create from Supermarket Preset")
                             }
                         }
                     }

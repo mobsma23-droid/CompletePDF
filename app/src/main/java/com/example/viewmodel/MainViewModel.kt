@@ -49,6 +49,24 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val db = AppDatabase.getInstance(application)
     private val settingsRepository = SettingsRepository(application)
+    val authRepository = com.example.service.AuthRepository(application)
+    val authState: StateFlow<com.example.service.AuthState> = authRepository.authState
+
+    fun signInWithGoogle() {
+        viewModelScope.launch {
+            authRepository.signInWithGoogle()
+        }
+    }
+
+    fun signOut() {
+        viewModelScope.launch {
+            authRepository.signOut()
+        }
+    }
+
+    fun clearAuthError() {
+        authRepository.clearError()
+    }
 
     private val coroutineExceptionHandler = CoroutineExceptionHandler { _, throwable ->
         Log.e("MainViewModel", "Unhandled coroutine error in processScope: ${throwable.message}", throwable)
@@ -399,11 +417,35 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     /**
      * Start / Resume sequential processing of all pending tasks in the queue.
+     * Starts Foreground Service and queues WorkManager background execution.
      */
     fun startOrResumeQueue() {
         if (activeQueueJob?.isActive == true) return
 
         _queueExecutionState.value = QueueExecutionState.PROCESSING
+
+        // Schedule WorkManager worker to maintain background execution guarantee
+        val context = getApplication<Application>()
+        try {
+            val queuedCount = _pdfTasks.value.count { it.stage is ProcessingStage.Queued }
+            val workRequest = androidx.work.OneTimeWorkRequestBuilder<com.example.service.ExtractionWorker>()
+                .setInputData(
+                    androidx.work.workDataOf(
+                        com.example.service.ExtractionWorker.KEY_TOTAL_TASKS to queuedCount,
+                        com.example.service.ExtractionWorker.KEY_CURRENT_FILE to (_pdfTasks.value.firstOrNull { it.stage is ProcessingStage.Queued }?.fileName ?: "Catalog")
+                    )
+                )
+                .setExpedited(androidx.work.OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
+                .build()
+
+            androidx.work.WorkManager.getInstance(context).enqueueUniqueWork(
+                com.example.service.ExtractionWorker.WORK_NAME,
+                androidx.work.ExistingWorkPolicy.REPLACE,
+                workRequest
+            )
+        } catch (e: Exception) {
+            Log.w("MainViewModel", "WorkManager enqueue notice: ${e.message}")
+        }
 
         activeQueueJob = processScope.launch {
             try {
@@ -426,6 +468,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _currentProcessingTaskId.value = null
 
         val context = getApplication<Application>()
+        try {
+            androidx.work.WorkManager.getInstance(context).cancelUniqueWork(com.example.service.ExtractionWorker.WORK_NAME)
+        } catch (e: Exception) {
+            Log.w("MainViewModel", "WorkManager cancel notice: ${e.message}")
+        }
+
         if (backgroundProcessingEnabled.value) {
             BackgroundExtractionService.updateProgress(
                 context = context,
@@ -447,6 +495,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _currentProcessingTaskId.value = null
 
         val context = getApplication<Application>()
+        try {
+            androidx.work.WorkManager.getInstance(context).cancelUniqueWork(com.example.service.ExtractionWorker.WORK_NAME)
+        } catch (e: Exception) {
+            Log.w("MainViewModel", "WorkManager cancel notice: ${e.message}")
+        }
+
         if (backgroundProcessingEnabled.value) {
             BackgroundExtractionService.stopService(context)
         }
