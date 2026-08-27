@@ -87,7 +87,9 @@ fun SettingsScreen(
     onSaveSchema: (ExtractionSchema) -> Unit = {},
     onDeleteSchema: (String) -> Unit = {},
     onResetSchemasDefaults: () -> Unit = {},
-    currentUser: FirebaseUser? = null,
+    userName: String? = null,
+    userEmail: String? = null,
+    isGuest: Boolean = false,
     onSignOut: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
@@ -119,7 +121,7 @@ fun SettingsScreen(
         }
 
         // Account / Profile Card
-        if (currentUser != null) {
+        if (!userName.isNullOrBlank() || !userEmail.isNullOrBlank()) {
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -151,11 +153,11 @@ fun SettingsScreen(
                     Spacer(modifier = Modifier.width(12.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = currentUser.displayName?.ifBlank { "Google User" } ?: "Google User",
+                            text = userName ?: "User",
                             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
                         )
                         Text(
-                            text = currentUser.email ?: "Authenticated with Google",
+                            text = if (isGuest) "Offline / Guest Session" else (userEmail ?: "Authenticated with Google"),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )

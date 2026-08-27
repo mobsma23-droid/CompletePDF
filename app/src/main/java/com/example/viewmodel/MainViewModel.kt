@@ -58,6 +58,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun continueAsGuest(name: String = "Test User") {
+        authRepository.continueAsGuest(name)
+    }
+
     fun signOut() {
         viewModelScope.launch {
             authRepository.signOut()

@@ -64,10 +64,11 @@ fun MainAppScreen(
             LoginScreen(
                 authState = authState,
                 onSignInClick = { viewModel.signInWithGoogle() },
+                onContinueAsGuest = { viewModel.continueAsGuest() },
                 onClearError = { viewModel.clearAuthError() }
             )
         } else {
-            val currentUser = (authState as com.example.service.AuthState.Authenticated).user
+            val authUser = authState as com.example.service.AuthState.Authenticated
 
             Scaffold(
                 topBar = {
@@ -200,7 +201,9 @@ fun MainAppScreen(
                             onSaveSchema = { schema -> viewModel.saveCustomSchema(schema) },
                             onDeleteSchema = { schemaId -> viewModel.deleteCustomSchema(schemaId) },
                             onResetSchemasDefaults = { viewModel.resetSchemasToDefault() },
-                            currentUser = currentUser,
+                            userName = authUser.displayName,
+                            userEmail = authUser.email,
+                            isGuest = authUser.isGuest,
                             onSignOut = { viewModel.signOut() }
                         )
                     }

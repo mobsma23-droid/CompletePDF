@@ -49,11 +49,14 @@ import com.example.service.AuthState
 fun LoginScreen(
     authState: AuthState,
     onSignInClick: () -> Unit,
+    onContinueAsGuest: () -> Unit,
     onClearError: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val isLoading = authState is AuthState.Loading
-    val errorMessage = (authState as? AuthState.Error)?.message
+    val errorState = authState as? AuthState.Error
+    val errorMessage = errorState?.message
+    val isNoCreds = errorState?.isCredentialUnavailable == true
 
     Box(
         modifier = modifier
@@ -102,7 +105,7 @@ fun LoginScreen(
                 modifier = Modifier.padding(horizontal = 16.dp)
             )
 
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(28.dp))
 
             // Sign In Card
             Card(
@@ -126,7 +129,7 @@ fun LoginScreen(
                     Spacer(modifier = Modifier.height(6.dp))
 
                     Text(
-                        text = "Use your Google Account for authentication and secure access to cloud services.",
+                        text = "Sign in with your Google account or continue in offline/guest mode to process PDF catalogs.",
                         style = MaterialTheme.typography.bodySmall,
                         textAlign = TextAlign.Center,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -169,6 +172,24 @@ fun LoginScreen(
                         }
                     }
 
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    // Guest / Offline Mode Option
+                    OutlinedButton(
+                        onClick = onContinueAsGuest,
+                        enabled = !isLoading,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp)
+                            .testTag("btn_guest_signin"),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text(
+                            text = "Continue in Offline / Guest Mode",
+                            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium)
+                        )
+                    }
+
                     // Error Banner if present
                     if (!errorMessage.isNullOrBlank()) {
                         Spacer(modifier = Modifier.height(14.dp))
@@ -176,25 +197,44 @@ fun LoginScreen(
                             shape = RoundedCornerShape(8.dp),
                             color = MaterialTheme.colorScheme.errorContainer
                         ) {
-                            Row(
+                            Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(10.dp),
-                                verticalAlignment = Alignment.CenterVertically
+                                    .padding(12.dp)
                             ) {
-                                Text(
-                                    text = errorMessage,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onErrorContainer,
-                                    modifier = Modifier.weight(1f)
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                OutlinedButton(
-                                    onClick = onClearError,
-                                    modifier = Modifier.size(28.dp),
-                                    contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp)
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Text("✕", fontSize = 12.sp)
+                                    Text(
+                                        text = errorMessage,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onErrorContainer,
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    OutlinedButton(
+                                        onClick = onClearError,
+                                        modifier = Modifier.size(28.dp),
+                                        contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp)
+                                    ) {
+                                        Text("✕", fontSize = 12.sp)
+                                    }
+                                }
+
+                                if (isNoCreds) {
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Button(
+                                        onClick = onContinueAsGuest,
+                                        modifier = Modifier.fillMaxWidth(),
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = MaterialTheme.colorScheme.onErrorContainer,
+                                            contentColor = MaterialTheme.colorScheme.errorContainer
+                                        ),
+                                        shape = RoundedCornerShape(8.dp)
+                                    ) {
+                                        Text("Enter as Guest / Test User", style = MaterialTheme.typography.labelMedium)
+                                    }
                                 }
                             }
                         }
