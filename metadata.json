@@ -1,0 +1,6 @@
+{
+  "name": "PDF Extractor",
+  "description": "Extract structured product data from PDF catalogs, split large files, export to Excel and CSV, and upload to Google Drive.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
